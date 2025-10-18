@@ -1,1 +1,12 @@
-
+Resources:
+ ATUec2: 
+  Type: AWS::EC2::Instance
+  Properties:
+   ImageId: ami-052064a798f08f0d3
+   InstanceType: t3.micro
+   KeyName: pgdipkeypair
+   Tags:
+    - Key: Name
+     Value: Demo1
+    - Key: CostCenter
+     Value: Eng
