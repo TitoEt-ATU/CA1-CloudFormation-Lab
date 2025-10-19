@@ -7,7 +7,7 @@ Resources:
    KeyName: IrishKP
    NetworkInterfaces:
      - AssociatePublicIpAddress: true
-       DeviceIndex: 0
+       DeviceIndex: '0'
        GroupSet:
         - !Ref EC2DemoSG
    Tags:
@@ -21,12 +21,12 @@ Resources:
   Properties:
    GroupName: Demo1
    GroupDescription: For EC2 Demo1
-   VpcId: 
+   VpcId: vpc-0c4e9792ce2b436a3
    SecurityGroupIngress:
      - IpProtocol: tcp
        FromPort: 22
        ToPort: 22
-       CidrIp: 0.0.0.0/0
+       CidrIp: 172.31.0.0/16
 
 Outputs:
   OutEC2Demo:
