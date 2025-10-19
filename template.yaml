@@ -1,38 +1,117 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: REST API using AWS API Gateway with a Lambda Integration
+
 Resources:
 
- EC2DemoSG: 
-  Type: AWS::EC2::SecurityGroup
-  Properties:
-   GroupName: Demo1
-   GroupDescription: For EC2 Demo1
-   VpcId: vpc-0c4e9792ce2b436a3
-   SecurityGroupIngress:
-     - IpProtocol: tcp
-       FromPort: 22
-       ToPort: 22
-       CidrIp: 172.31.0.0/16
+  SimpleRestAPI:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Description: REST API that gets users IP
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      Name: whats-my-ip-cf
 
- EC2Instance: 
-  Type: AWS::EC2::Instance
-  Properties:
-   ImageId: ami-033a3fad07a25c231
-   InstanceType: t3.micro
-   KeyName: IrishKP
-   NetworkInterfaces:
-     - AssociatePublicIpAddress: true
-       DeviceIndex: '0'
-       GroupSet:
-        - !Ref EC2DemoSG
-   Tags:
-    - Key: Name
-      Value: Demo1
-    - Key: CostCenter
-      Value: Eng
+  ApiGatewayResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt SimpleRestAPI.RootResourceId
+      PathPart: 'ip'
+      RestApiId: !Ref SimpleRestAPI
 
-Outputs:
-  OutEC2Demo:
-  #set of outputs, value references the resource, export the field
-    Description: AWS::EC2::Instance
-    Value: !Ref EC2Instance
-    Export: 
-      Name: !Sub "${AWS::StackName}-EC2InstanceID"
+  ApiGatewayMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Credentials: !GetAtt ApiGatewayIamRole.Arn
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFunction.Arn}/invocations'
+      ResourceId: !Ref ApiGatewayResource
+      RestApiId: !Ref SimpleRestAPI
+
+  ApiGatewayModel:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      ContentType: 'application/json'
+      RestApiId: !Ref SimpleRestAPI
+      Schema: {}
+
+  ApiGatewayStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      DeploymentId: !Ref ApiGatewayDeployment
+      Description: REST API dev stage
+      RestApiId: !Ref SimpleRestAPI
+      StageName: 'dev'
+
+  ApiGatewayDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn: ApiGatewayMethod
+    Properties:
+      Description: Lambda API Deployment
+      RestApiId: !Ref SimpleRestAPI
+
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          import json
+          def lambda_handler(event, context):
+              ip_address = event['requestContext']['identity']['sourceIp']
+              return {
+                  'body': json.dumps({"ip_address": ip_address}),
+                  'headers': {
+                      'Content-Type': 'application/json'
+                  },
+                  'statusCode': 200
+              }
+
+      Description: AWS Lambda function
+      FunctionName: 'get_ip'
+      Handler: index.lambda_handler
+      MemorySize: 256
+      Role: !GetAtt LambdaIamRole.Arn
+      Runtime: python3.9
+      Timeout: 60
+
+  ApiGatewayIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ''
+            Effect: 'Allow'
+            Principal:
+              Service:
+                - 'apigateway.amazonaws.com'
+            Action:
+              - 'sts:AssumeRole'
+      Path: '/'
+      Policies:
+        - PolicyName: LambdaAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action: 'lambda:*'
+                Resource: !GetAtt LambdaFunction.Arn
+
+  LambdaIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service:
+                - 'lambda.amazonaws.com'
+            Action:
+              - 'sts:AssumeRole'
+      Path: '/'
