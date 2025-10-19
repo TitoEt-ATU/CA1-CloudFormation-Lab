@@ -2,11 +2,35 @@ Resources:
  ATUec2: 
   Type: AWS::EC2::Instance
   Properties:
-   ImageId: ami-052064a798f08f0d3
+   ImageId: ami-033a3fad07a25c231
    InstanceType: t3.micro
-   KeyName: pgdipkeypair
+   KeyName: IrishKP
+   NetworkInterfaces:
+     - AssociatePublicIpAddress: true
+       DeviceIndex: 0
+       GroupSet:
+        - !Ref EC2DemoSG
    Tags:
     - Key: Name
-     Value: Demo1
+      Value: Demo1
     - Key: CostCenter
-     Value: Eng
+      Value: Eng
+
+ EC2DemoSG: 
+  Type: AWS::EC2::SecurityGroup
+  Properties:
+   GroupName: Demo1
+   GroupDescription: For EC2 Demo1
+   VpcId: 
+   SecurityGroupIngress:
+     - IpProtocol: tcp
+       FromPort: 22
+       ToPort: 22
+       CidrIp: 0.0.0.0/0
+
+Outputs:
+  OutEC2Demo:
+  #set of outputs, value references the resource, export the field
+    Description: AWS::EC2::Instance
+    Value: !Ref ATUec2
+    Export:
