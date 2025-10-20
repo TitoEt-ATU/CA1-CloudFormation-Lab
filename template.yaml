@@ -116,44 +116,41 @@ Resources:
               - 'sts:AssumeRole'
       Path: '/'
 
-  EC2Instance: 
-    Type: AWS::EC2::Instance
+#improve security by requiring password access to the API, without API key the endpoint is public
+#usage plan limits it's use, makes it so its only used when required, which is cost effective and also improves security
+  APIKey:
+    Type: AWS::ApiGateway::ApiKey
     Properties:
-      ImageId: ami-033a3fad07a25c231
-      InstanceType: t3.micro
-      UserData: 
-        Fn::Base64:
-         !Sub |
-            #!/bin/bash
-            yum update -y
+      Name: !Sub get-ip-api-key-${AWS::StackName}
+      Enabled: true
+      StageKeys:
+        - RestApiId: !Ref SimpleRestAPI
+          StageName: dev
 
-            # Install Apache HTTP Server
-            yum install -y httpd
-            
-            # Start Apache HTTP Server
-            service httpd start
-            chkconfig httpd on      
-      SecurityGroups:
-        - !Ref EC2SecurityGroup
-      NetworkInterfaces:
-        - AssociatePublicIpAddress: true
-          DeviceIndex: '0'
-          GroupSet:
-            - !Ref EC2SecurityGroup
-      Tags:
-        - Key: Name
-          Value: My Instance
-        - Key: Type
-          Value: Worker Instance
-
-  EC2SecurityGroup: 
-    Type: AWS::EC2::SecurityGroup
+  UsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
     Properties:
-      GroupName: Security Group for ec2 instance
-      GroupDescription: To allow http to client host
-      VpcId: vpc-0c4e9792ce2b436a3
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: 172.31.0.0/16
+      UsagePlanName: !Sub get-ip-usage-plan-${AWS::StackName}
+      ApiStages:
+        - ApiId: !Ref SimpleRestAPI
+          Stage: dev
+      Throttle:
+        BurstLimit: 5
+        RateLimit: 10
+      Quota:
+        Limit: 1000
+        Period: MONTH
+
+  UsagePlanKey:
+    Type: AWS::ApiGateway::UsagePlanKey
+    Properties:
+      KeyId: !Ref APIKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref UsagePlan
+
+Outputs:
+  ApiUrl:
+    Description: URL of the API Gateway endpoint
+    Value: !Sub 'https://${SimpleRestAPI}.execute-api.${AWS::Region}.amazonaws.com/dev/ip'    
+
+  
