@@ -115,3 +115,45 @@ Resources:
             Action:
               - 'sts:AssumeRole'
       Path: '/'
+
+  EC2Instance: 
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-033a3fad07a25c231
+      InstanceType: t3.micro
+      UserData: 
+        Fn::Base64:
+         !Sub |
+            #!/bin/bash
+            yum update -y
+
+            # Install Apache HTTP Server
+            yum install -y httpd
+            
+            # Start Apache HTTP Server
+            service httpd start
+            chkconfig httpd on      
+      SecurityGroups:
+        - !Ref EC2SecurityGroup
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: '0'
+          GroupSet:
+            - !Ref EC2SecurityGroup
+      Tags:
+        - Key: Name
+          Value: My Instance
+        - Key: Type
+          Value: Worker Instance
+
+  EC2SecurityGroup: 
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: Security Group for ec2 instance
+      GroupDescription: To allow http to client host
+      VpcId: vpc-0c4e9792ce2b436a3
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 172.31.0.0/16
