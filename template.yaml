@@ -25,8 +25,8 @@ Resources:
     Properties:
       HttpMethod: GET
       AuthorizationType: NONE
+      ApiKeyRequired: true
       Integration:
-        Credentials: !GetAtt ApiGatewayIamRole.Arn
         IntegrationHttpMethod: POST
         Type: AWS_PROXY
         Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFunction.Arn}/invocations'
@@ -122,8 +122,7 @@ Resources:
       FunctionName: !Ref LambdaFunction
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
-      SourceArn: !Sub arn:aws:execute-api:eu-west-1:596797808861:qe56k4z6k3/*/GET/ip
-
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${SimpleRestAPI}/*/GET/ip
 
 #improve security by requiring password access to the API, without API key the endpoint is public
 #usage plan limits it's use, makes it so its only used when required, which is cost effective and also improves security
